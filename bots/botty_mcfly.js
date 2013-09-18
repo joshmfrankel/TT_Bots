@@ -12,7 +12,7 @@ var bot = new Bot(AUTH, USERID, ROOMID);
 var config = {};
 
 // Amount of bops required thumbs up a song
-config.bopCount = 2;
+config.bopCount = 1;
 
 // User list for people with admin oriented bot permissions
 config.botAdmins = ['REkurzion'];
@@ -53,14 +53,12 @@ config.botAdminsId = ['5231e40beb35c11c0b4cfa60', '5127af97eb35c17b76013ddd'];
 bot.on('roomChanged', function (data) {
 
     // Init the song with js obj notation
-    bot.song = {};
-    bot.song.songName = data.room.metadata.current_song.metadata.song;
-    bot.song.album = data.room.metadata.current_song.metadata.album;
-    bot.song.artist = data.room.metadata.current_song.metadata.artist;
+    setSongData(data);
 
     // Current DJ
     bot.dj = {};
     bot.dj.djName = data.room.metadata.current_song.djname;
+    bot.dj.count = data.room.metadata.djcount;
 
     // Reset bop Counter
     bot.bopCount = 0;
@@ -75,18 +73,50 @@ bot.on('newsong', function (data) {
     bot.speak(bot.dj.djName + ' just played ' + bot.song.songName + ' by ' + bot.song.artist);
 
     // Init the song with js obj notation
-    bot.song = {};
-    bot.song.songName = data.room.metadata.current_song.metadata.song;
-    bot.song.album = data.room.metadata.current_song.metadata.album;
-    bot.song.artist = data.room.metadata.current_song.metadata.artist;
+    setSongData(data);
 
     // Current DJ
     bot.dj = {};
     bot.dj.djName = data.room.metadata.current_song.djname;
+    bot.dj.count = data.room.metadata.djcount;
 
     // Reset bop Counter
     bot.bopCount = 0;
+
+    // Auto DJ
+    if (bot.dj.count <= 2) {
+        startBotDJ();
+    } else {
+        // todo check for the bot to be on stage
+        bot.remDj();
+    }
 });
+
+////////////////////
+// HELPER METHODS //
+////////////////////
+
+// Put the bot on the stage
+function startBotDJ () {
+    bot.addDj();
+    setTimeout(function() {
+        bot.speak('Move over I\'m djing now');
+    }, 500);
+}
+
+/**
+ * Set the song data for each song
+ *
+ * @param {JSON} data The API return from the event
+ * @return void
+ */
+function setSongData (data) {
+    bot.song          = {};
+    bot.song.songId   = data.room.metadata.current_song._id;
+    bot.song.songName = data.room.metadata.current_song.metadata.song;
+    bot.song.album    = data.room.metadata.current_song.metadata.album;
+    bot.song.artist   = data.room.metadata.current_song.metadata.artist;
+}
 
 
 /////////////////
@@ -210,6 +240,9 @@ bot.on('pmmed', function (data) {
     // The user issuing the message
     var user = data.userid;
 
+    // sender
+    var sender = data.senderid;
+
     // Does user have permission for bot commands
     var isAdmin = $.inArray(user, config.botAdminsId) > -1;
 
@@ -230,10 +263,7 @@ bot.on('pmmed', function (data) {
         switch(text)
         {
             case '/go':
-                bot.addDj();
-                setTimeout(function() {
-                    bot.speak('Move over I\'m djing now');
-                }, 500);
+                startBotDJ();
                 break;
             case '/stop':
                 bot.remDj();
@@ -245,22 +275,32 @@ bot.on('pmmed', function (data) {
                 bot.speak('Thank you. That song was borrring.');
                 break;
             case '/addsong':
+                bot.pm('Song Added', sender);
+                bot.playlistAdd(bot.song.songId);
+                bot.snag();
+                break;
+            case '/playlist':
 
-                    // bot.snag();
-                    // bot.playlistAdd(data.room.metadata.current_song._id);
-                    // bot.becomeFan(data.room.metadata.current_dj);
-                    //console.log(data.room.metadata);
-                // Bot adds song to the bottom of it's DJ queue on /addsong command
-                // bot.playlistAll(function (data) {
-                //   bot.playlistAdd(songId, data.list.length);
-                // });
-                // bot.snag();
+                bot.playlistListAll(function (playlist)
+                {
+                    console.log(playlist);
+                });
+
+                break;
+            case '/playlist create':
+                //console.log(text);
                 break;
             case '/remove':
                 // Remove the current song from next queue
-                bot.playlistAll(function (data) {
-                    bot.playlistRemove(songId, data.list.length);
+                bot.playlistAll(function (playlist)
+                {
+                    bot.playlistRemove(playlist.list.length - 1);
+                    bot.pm('Removed song from list', sender);
                 });
+                //bot.playlistRemove(bot.song.songId);
+                break;
+            case '/debug':
+                console.log(data);
                 break;
             default:
               //bot.speak('I don\' understand the command @' + user + '.');
