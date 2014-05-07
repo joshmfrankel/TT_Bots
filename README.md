@@ -1,3 +1,9 @@
+#Fork Information  
+
+Josh Frankel  
+My implementation of a Turntable Bot using the existing TT API and node.  
+For the file I worked on [go here](https://github.com/joshmfrankel/TT_Bots/blob/master/bots/botty_mcfly.js)  
+
 #Turntable API
 
 A simple nodejs wrapper for the turntable API.
